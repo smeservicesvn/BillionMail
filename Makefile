@@ -31,6 +31,13 @@ help: ## Show this help message
 	@echo "  make docker-build - Build all Docker images"
 	@echo "  make deploy      - Deploy to production"
 	@echo ""
+	@echo "Git Sync Commands:"
+	@echo "  make sync-upstream      - Fetch latest from upstream BillionMail"
+	@echo "  make rebase-upstream    - Rebase your commits on upstream"
+	@echo "  make sync-and-rebase    - Sync and rebase in one command"
+	@echo "  make show-upstream-status - Show sync status"
+	@echo "  make full-sync          - Complete sync workflow"
+	@echo ""
 	@echo "Utility Commands:"
 	@echo "  make backup      - Backup database and configs"
 	@echo "  make restore     - Restore from backup"
@@ -226,3 +233,42 @@ env-info: ## Show environment configuration
 	@echo "HTTPS Port: $(shell grep HTTPS_PORT .env | cut -d'=' -f2)"
 	@echo "SMTP Ports: $(shell grep SMTP_PORT .env | cut -d'=' -f2), $(shell grep SMTPS_PORT .env | cut -d'=' -f2), $(shell grep SUBMISSION_PORT .env | cut -d'=' -f2)"
 	@echo "IMAP Ports: $(shell grep IMAP_PORT .env | cut -d'=' -f2), $(shell grep IMAPS_PORT .env | cut -d'=' -f2)"
+
+# Git Sync Commands
+sync-upstream: ## Fetch latest changes from upstream BillionMail repository
+	@echo "Fetching latest changes from upstream BillionMail repository..."
+	git fetch upstream
+	@echo "Upstream changes fetched. Use 'make rebase-upstream' to apply them."
+
+rebase-upstream: ## Rebase your commits on top of upstream changes
+	@echo "Rebasing your commits on top of upstream changes..."
+	@echo "This will replay your local commits on top of the latest upstream code."
+	git rebase upstream/dev
+	@echo "Rebase complete! Your commits are now on top of upstream changes."
+
+sync-and-rebase: ## Sync with upstream and rebase in one command
+	@echo "Syncing with upstream and rebasing..."
+	@make sync-upstream
+	@make rebase-upstream
+
+show-upstream-status: ## Show status compared to upstream repository
+	@echo "Upstream Repository Status:"
+	@echo "Upstream remote: $(shell git remote get-url upstream)"
+	@echo "Your branch: $(shell git branch --show-current)"
+	@echo "Commits ahead of upstream: $(shell git rev-list --count upstream/dev..HEAD)"
+	@echo "Commits behind upstream: $(shell git rev-list --count HEAD..upstream/dev)"
+	@echo ""
+	@echo "Recent upstream commits:"
+	@git log --oneline upstream/dev -5
+
+push-to-origin: ## Push your rebased commits to your fork
+	@echo "Pushing rebased commits to your fork..."
+	git push origin dev --force-with-lease
+	@echo "Pushed to origin successfully!"
+
+full-sync: ## Complete sync workflow: fetch, rebase, and push
+	@echo "Starting complete sync workflow..."
+	@make sync-upstream
+	@make rebase-upstream
+	@make push-to-origin
+	@echo "Full sync workflow completed!"
