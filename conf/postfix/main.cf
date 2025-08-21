@@ -78,4 +78,4 @@ message_size_limit = 102400000
 
 
 # User Overrides-configuration
-myhostname = localhost
+myhostname = mail.smess.vn
