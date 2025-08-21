@@ -29,6 +29,11 @@ help: ## Show this help message
 	@echo ""
 	@echo "Deployment Commands:"
 	@echo "  make docker-build - Build all Docker images"
+	@echo "  make docker-push  - Push images to registry"
+	@echo "  make docker-clone-images - Clone billionmail images to your account"
+	@echo "  make docker-push-cloned - Push cloned images to your Docker Hub"
+	@echo "  make docker-update-compose - Update compose to use your images"
+	@echo "  make docker-full-clone - Complete image cloning workflow"
 	@echo "  make deploy      - Deploy to production"
 	@echo ""
 	@echo "Git Sync Commands:"
@@ -154,6 +159,57 @@ docker-push: ## Push Docker images to registry
 	docker push billionmail/postfix:latest
 	docker push billionmail/dovecot:latest
 	docker push billionmail/rspamd:latest
+
+# Docker Image Cloning and Management
+docker-clone-images: ## Clone billionmail images to your account (set DOCKER_USERNAME)
+	@if [ -z "$(DOCKER_USERNAME)" ]; then echo "Usage: make docker-clone-images DOCKER_USERNAME=yourusername"; exit 1; fi
+	@echo "Cloning billionmail images to $(DOCKER_USERNAME) account..."
+	docker tag billionmail/core:4.3.2 $(DOCKER_USERNAME)/billionmail-core:4.3.2
+	docker tag billionmail/core:4.3.2 $(DOCKER_USERNAME)/billionmail-core:latest
+	docker tag billionmail/rspamd:1.2 $(DOCKER_USERNAME)/billionmail-rspamd:1.2
+	docker tag billionmail/rspamd:1.2 $(DOCKER_USERNAME)/billionmail-rspamd:latest
+	docker tag billionmail/dovecot:1.5 $(DOCKER_USERNAME)/billionmail-dovecot:1.5
+	docker tag billionmail/dovecot:1.5 $(DOCKER_USERNAME)/billionmail-dovecot:latest
+	docker tag billionmail/postfix:1.6 $(DOCKER_USERNAME)/billionmail-postfix:1.6
+	docker tag billionmail/postfix:1.6 $(DOCKER_USERNAME)/billionmail-postfix:latest
+	@echo "Images tagged successfully. Use 'make docker-push-cloned DOCKER_USERNAME=$(DOCKER_USERNAME)' to push them."
+
+docker-push-cloned: ## Push cloned images to your Docker Hub account
+	@if [ -z "$(DOCKER_USERNAME)" ]; then echo "Usage: make docker-push-cloned DOCKER_USERNAME=yourusername"; exit 1; fi
+	@echo "Pushing cloned images to $(DOCKER_USERNAME) account..."
+	docker push $(DOCKER_USERNAME)/billionmail-core:4.3.2
+	docker push $(DOCKER_USERNAME)/billionmail-core:latest
+	docker push $(DOCKER_USERNAME)/billionmail-rspamd:1.2
+	docker push $(DOCKER_USERNAME)/billionmail-rspamd:latest
+	docker push $(DOCKER_USERNAME)/billionmail-dovecot:1.5
+	docker push $(DOCKER_USERNAME)/billionmail-dovecot:latest
+	docker push $(DOCKER_USERNAME)/billionmail-postfix:1.6
+	docker push $(DOCKER_USERNAME)/billionmail-postfix:latest
+	@echo "All images pushed to $(DOCKER_USERNAME) account successfully!"
+
+docker-update-compose: ## Update docker-compose.yml to use your cloned images
+	@if [ -z "$(DOCKER_USERNAME)" ]; then echo "Usage: make docker-update-compose DOCKER_USERNAME=yourusername"; exit 1; fi
+	@echo "Updating docker-compose.yml to use $(DOCKER_USERNAME) images..."
+	@sed -i.bak 's|billionmail/|$(DOCKER_USERNAME)/billionmail-|g' docker-compose.yml
+	@echo "docker-compose.yml updated. Backup saved as docker-compose.yml.bak"
+	@echo "You can now use 'make start' with your own images!"
+
+docker-restore-compose: ## Restore original docker-compose.yml
+	@echo "Restoring original docker-compose.yml..."
+	@if [ -f docker-compose.yml.bak ]; then \
+		cp docker-compose.yml.bak docker-compose.yml; \
+		echo "Original docker-compose.yml restored"; \
+	else \
+		echo "No backup found. Original file not modified."; \
+	fi
+
+docker-full-clone: ## Complete workflow: clone, push, and update compose
+	@if [ -z "$(DOCKER_USERNAME)" ]; then echo "Usage: make docker-full-clone DOCKER_USERNAME=yourusername"; exit 1; fi
+	@echo "Starting complete Docker image cloning workflow..."
+	@make docker-clone-images DOCKER_USERNAME=$(DOCKER_USERNAME)
+	@make docker-push-cloned DOCKER_USERNAME=$(DOCKER_USERNAME)
+	@make docker-update-compose DOCKER_USERNAME=$(DOCKER_USERNAME)
+	@echo "Complete workflow finished! Your fork now uses your own Docker images."
 
 # Deployment Commands
 deploy: ## Deploy to production
