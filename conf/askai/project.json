@@ -1,0 +1,10 @@
+{
+  "name": "askai",
+  "domain": "localhost",
+  "enabled": true,
+  "services": {
+    "smtp": true,
+    "imap": true,
+    "webmail": true
+  }
+}
