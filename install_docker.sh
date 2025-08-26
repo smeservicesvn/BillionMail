@@ -120,7 +120,8 @@ install_docker_ubuntu() {
         ca-certificates \
         curl \
         gnupg \
-        lsb-release
+        lsb-release \
+        net-tools
     
     # Add Docker's official GPG key
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
@@ -146,7 +147,7 @@ install_docker_centos() {
     log_info "Installing Docker on CentOS/RHEL/Fedora..."
     
     # Install prerequisites
-    sudo yum install -y yum-utils
+    sudo yum install -y yum-utils net-tools
     
     # Add Docker repository
     sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
@@ -222,8 +223,19 @@ check_ports() {
     PORTS=(25 80 110 143 443 465 587 993 995 25432 26379)
     BUSY_PORTS=()
     
+    # Try ss first (modern), fallback to netstat
+    if command -v ss &> /dev/null; then
+        PORT_CHECK_CMD="ss -tuln"
+    elif command -v netstat &> /dev/null; then
+        PORT_CHECK_CMD="netstat -tuln"
+    else
+        log_warning "Neither 'ss' nor 'netstat' is available. Cannot check port availability."
+        log_info "Please install net-tools: sudo apt-get install net-tools (Ubuntu/Debian) or sudo yum install net-tools (CentOS/RHEL)"
+        return
+    fi
+    
     for port in "${PORTS[@]}"; do
-        if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+        if $PORT_CHECK_CMD 2>/dev/null | grep -q ":$port "; then
             BUSY_PORTS+=($port)
         fi
     done
