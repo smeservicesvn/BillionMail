@@ -56,6 +56,11 @@ help: ## Show this help message
 	@echo "  make use-billionmail   - Switch to original billionmail images"
 	@echo "  make show-compose-versions - Show available docker-compose versions"
 	@echo ""
+	@echo "VPS Debugging Commands:"
+	@echo "  make debug-vps         - Debug VPS connectivity and service status"
+	@echo "  make test-connectivity - Test external connectivity to VPS"
+	@echo "  make check-ports       - Check which ports are listening and accessible"
+	@echo ""
 	@echo "Architecture & Troubleshooting:"
 	@echo "  make check-arch  - Check system architecture and Docker platform"
 	@echo "  make docker-check-images - Check current Docker images and architecture"
@@ -454,6 +459,47 @@ show-compose-versions: ## Show available docker-compose versions
 	else \
 		echo "  ? Unknown images (docker-compose.yml)"; \
 	fi
+
+# VPS Debugging and Connectivity Commands
+debug-vps: ## Debug VPS connectivity and service status
+	@echo "=== VPS Debugging Information ==="
+	@echo "System Information:"
+	@echo "  Hostname: $$(hostname)"
+	@echo "  Public IP: $$(curl -s ifconfig.me 2>/dev/null || echo 'Unable to detect')"
+	@echo "  Local IP: $$(hostname -I | awk '{print $$1}')"
+	@echo "  OS: $$(uname -a)"
+	@echo ""
+	@echo "Docker Services Status:"
+	@make status
+	@echo ""
+	@echo "Port Accessibility:"
+	@echo "  HTTP (80): $$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80 2>/dev/null || echo 'Not accessible')"
+	@echo "  HTTPS (443): $$(curl -s -o /dev/null -w '%{http_code}' https://localhost:443 2>/dev/null || echo 'Not accessible')"
+	@echo ""
+	@echo "Network Interfaces:"
+	@ip addr show 2>/dev/null || ifconfig 2>/dev/null || echo "Network info not available"
+	@echo ""
+	@echo "Firewall Status:"
+	@if command -v ufw >/dev/null 2>&1; then ufw status; elif command -v firewall-cmd >/dev/null 2>&1; then firewall-cmd --list-all; else echo "No firewall detected"; fi
+
+test-connectivity: ## Test external connectivity to VPS
+	@echo "=== Testing VPS Connectivity ==="
+	@echo "Testing from external perspective..."
+	@echo "Public IP: $$(curl -s ifconfig.me 2>/dev/null || echo 'Unable to detect')"
+	@echo ""
+	@echo "Testing HTTP access:"
+	@curl -s -I http://$$(curl -s ifconfig.me 2>/dev/null) 2>/dev/null | head -1 || echo "HTTP not accessible externally"
+	@echo ""
+	@echo "Testing HTTPS access:"
+	@curl -s -I https://$$(curl -s ifconfig.me 2>/dev/null) 2>/dev/null | head -1 || echo "HTTPS not accessible externally"
+
+check-ports: ## Check which ports are listening and accessible
+	@echo "=== Port Status Check ==="
+	@echo "Listening ports:"
+	@ss -tuln 2>/dev/null | grep -E ':(80|443|25|587|465|143|993|110|995|5432|6379)' || netstat -tuln 2>/dev/null | grep -E ':(80|443|25|587|465|143|993|110|995|5432|6379)' || echo "No relevant ports found"
+	@echo ""
+	@echo "Docker container ports:"
+	@docker ps --format "table {{.Names}}\t{{.Ports}}" | grep billionmail || echo "No billionmail containers running"
 
 # Architecture and Troubleshooting Commands
 check-arch: ## Check system architecture and Docker platform
