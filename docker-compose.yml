@@ -41,7 +41,7 @@ services:
             - redis
 
     rspamd-billionmail:
-      image: billionmail/rspamd:1.2
+      image: smeservicesvn/billionmail-rspamd:1.2
       hostname: rspamd
       depends_on:
         - redis-billionmail
@@ -62,7 +62,7 @@ services:
             - rspamd
 
     dovecot-billionmail:
-      image: billionmail/dovecot:1.5
+      image: smeservicesvn/billionmail-dovecot:1.5
       hostname: dovecot
       depends_on:
         - pgsql-billionmail
@@ -104,7 +104,7 @@ services:
             - dovecot
 
     postfix-billionmail:
-      image: billionmail/postfix:1.6
+      image: smeservicesvn/billionmail-postfix:1.6
       hostname: postfix
       depends_on:
         pgsql-billionmail:
@@ -173,7 +173,7 @@ services:
             - webmail
 
     core-billionmail:
-      image: billionmail/core:4.3.2
+      image: smeservicesvn/billionmail-core:4.3.2
       hostname: core-manage
       depends_on:
         - pgsql-billionmail
