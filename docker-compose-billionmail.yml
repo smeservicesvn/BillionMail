@@ -183,15 +183,15 @@ services:
         - ./conf/core/fail2ban/filter.d:/etc/fail2ban/filter.d
         - ./conf/core/fail2ban/jail.d:/etc/fail2ban/jail.d
         - ./logs/fail2ban:/var/log/fail2ban
-        - ./postgresql-socket:/opt/billionmail/postgresql-socket
-        - ./php-sock:/opt/billionmail/php-sock
-        - ./rspamd-data:/opt/billionmail/rspamd-data
-        - ./webmail-data:/opt/billionmail/webmail-data
-        - ./.env:/opt/billionmail/.env
-        - ./conf:/opt/billionmail/conf
-        - ./logs:/opt/billionmail/logs
-        - ./logs/core:/opt/billionmail/core/logs
-        - ./core-data:/opt/billionmail/core/data
+        - ./postgresql-socket:/opt/smeservicesvn/billionmail-postgresql-socket
+        - ./php-sock:/opt/smeservicesvn/billionmail-php-sock
+        - ./rspamd-data:/opt/smeservicesvn/billionmail-rspamd-data
+        - ./webmail-data:/opt/smeservicesvn/billionmail-webmail-data
+        - ./.env:/opt/smeservicesvn/billionmail-.env
+        - ./conf:/opt/smeservicesvn/billionmail-conf
+        - ./logs:/opt/smeservicesvn/billionmail-logs
+        - ./logs/core:/opt/smeservicesvn/billionmail-core/logs
+        - ./core-data:/opt/smeservicesvn/billionmail-core/data
         - /var/run/docker.sock:/var/run/docker.sock:ro
       environment:
         - TZ=${TZ}

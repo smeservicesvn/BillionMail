@@ -50,6 +50,17 @@ help: ## Show this help message
 	@echo "  make logs-clean  - Clean old log files"
 	@echo "  make ssl-renew   - Renew SSL certificates"
 	@echo "  make install-docker - Run Docker installation and setup script"
+	@echo ""
+	@echo "Docker Compose Version Management:"
+	@echo "  make use-smeservicesvn - Switch to smeservicesvn images (default)"
+	@echo "  make use-billionmail   - Switch to original billionmail images"
+	@echo "  make show-compose-versions - Show available docker-compose versions"
+	@echo ""
+	@echo "Architecture & Troubleshooting:"
+	@echo "  make check-arch  - Check system architecture and Docker platform"
+	@echo "  make docker-check-images - Check current Docker images and architecture"
+	@echo "  make fix-exec-format-error - Fix exec format error with correct architecture"
+	@echo "  make docker-clone-images-fixed - Clone images with architecture detection"
 
 # Frontend Development Commands
 install: ## Install frontend dependencies
@@ -408,3 +419,130 @@ full-sync: ## Complete sync workflow: fetch, rebase, and push
 	@make rebase-upstream
 	@make push-to-origin
 	@echo "Full sync workflow completed!"
+
+# Docker Compose Version Management
+use-smeservicesvn: ## Switch to smeservicesvn images (default)
+	@echo "Switching to smeservicesvn images..."
+	@cp docker-compose.yml docker-compose-current.yml
+	@echo "Now using smeservicesvn images (docker-compose.yml)"
+
+use-billionmail: ## Switch to original billionmail images
+	@echo "Switching to billionmail images..."
+	@cp docker-compose-billionmail.yml docker-compose.yml
+	@echo "Now using billionmail images (docker-compose.yml)"
+
+show-compose-versions: ## Show available docker-compose versions
+	@echo "Available Docker Compose versions:"
+	@echo "=================================="
+	@echo "1. smeservicesvn images (default):"
+	@echo "   - smeservicesvn/billionmail-core:4.3.2"
+	@echo "   - smeservicesvn/billionmail-rspamd:1.2"
+	@echo "   - smeservicesvn/billionmail-dovecot:1.5"
+	@echo "   - smeservicesvn/billionmail-postfix:1.6"
+	@echo ""
+	@echo "2. billionmail images (original):"
+	@echo "   - billionmail/core:4.3.2"
+	@echo "   - billionmail/rspamd:1.2"
+	@echo "   - billionmail/dovecot:1.5"
+	@echo "   - billionmail/postfix:1.6"
+	@echo ""
+	@echo "Current active version:"
+	@if grep -q "image: smeservicesvn/" docker-compose.yml; then \
+		echo "  ✓ smeservicesvn images (docker-compose.yml)"; \
+	elif grep -q "image: billionmail/" docker-compose.yml; then \
+		echo "  ✓ billionmail images (docker-compose.yml)"; \
+	else \
+		echo "  ? Unknown images (docker-compose.yml)"; \
+	fi
+
+# Architecture and Troubleshooting Commands
+check-arch: ## Check system architecture and Docker platform
+	@echo "System Architecture Information:"
+	@echo "=========================="
+	@echo "OS: $$(uname -s)"
+	@echo "Machine: $$(uname -m)"
+	@echo "Platform: $$(uname -p 2>/dev/null || echo 'unknown')"
+	@echo ""
+	@echo "Docker Platform Information:"
+	@echo "=========================="
+	@docker version --format 'Client Version: {{.Client.Version}}'
+	@docker version --format 'Server Version: {{.Server.Version}}'
+	@docker info --format 'Architecture: {{.Architecture}}'
+	@docker info --format 'OS/Type: {{.OperatingSystem}}/{{.OSType}}'
+	@echo ""
+	@echo "Available Docker Platforms:"
+	@docker buildx ls
+
+docker-check-images: ## Check current Docker images and their architecture
+	@echo "Current Docker Images and Architecture:"
+	@echo "===================================="
+	@for img in $$($(DOCKER_COMPOSE_CMD) config | grep 'image:' | awk '{print $$2}' | sort -u); do \
+		echo "Image: $$img"; \
+		docker image inspect $$img --format 'Architecture: {{.Architecture}} | OS: {{.Os}}' 2>/dev/null || echo "  Status: Not found locally"; \
+		echo ""; \
+	done
+
+docker-pull-platform: ## Pull images for specific platform (use PLATFORM=linux/amd64 or linux/arm64)
+	@if [ -z "$(PLATFORM)" ]; then echo "Usage: make docker-pull-platform PLATFORM=linux/amd64"; exit 1; fi
+	@echo "Pulling images for platform: $(PLATFORM)"
+	@echo "Pulling billionmail/core:4.3.2..."
+	docker pull --platform $(PLATFORM) billionmail/core:4.3.2
+	@echo "Pulling billionmail/rspamd:1.2..."
+	docker pull --platform $(PLATFORM) billionmail/rspamd:1.2
+	@echo "Pulling billionmail/dovecot:1.5..."
+	docker pull --platform $(PLATFORM) billionmail/dovecot:1.5
+	@echo "Pulling billionmail/postfix:1.6..."
+	docker pull --platform $(PLATFORM) billionmail/postfix:1.6
+	@echo "All platform-specific images pulled successfully!"
+
+docker-clone-images-fixed: ## Clone images with proper architecture detection (set DOCKER_USERNAME)
+	@if [ -z "$(DOCKER_USERNAME)" ]; then echo "Usage: make docker-clone-images-fixed DOCKER_USERNAME=yourusername"; exit 1; fi
+	@echo "Detecting system architecture..."
+	@ARCH=$$(uname -m); \
+	if [ "$$ARCH" = "x86_64" ]; then \
+		PLATFORM="linux/amd64"; \
+	elif [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
+		PLATFORM="linux/arm64"; \
+	else \
+		echo "Unsupported architecture: $$ARCH"; \
+		exit 1; \
+	fi; \
+	echo "System architecture: $$ARCH"; \
+	echo "Docker platform: $$PLATFORM"; \
+	echo ""; \
+	echo "Pulling images for your architecture..."; \
+	docker pull --platform $$PLATFORM billionmail/core:4.3.2; \
+	docker pull --platform $$PLATFORM billionmail/rspamd:1.2; \
+	docker pull --platform $$PLATFORM billionmail/dovecot:1.5; \
+	docker pull --platform $$PLATFORM billionmail/postfix:1.6; \
+	echo ""; \
+	echo "Tagging images for $(DOCKER_USERNAME) account..."; \
+	docker tag billionmail/core:4.3.2 $(DOCKER_USERNAME)/billionmail-core:4.3.2; \
+	docker tag billionmail/core:4.3.2 $(DOCKER_USERNAME)/billionmail-core:latest; \
+	docker tag billionmail/rspamd:1.2 $(DOCKER_USERNAME)/billionmail-rspamd:1.2; \
+	docker tag billionmail/rspamd:1.2 $(DOCKER_USERNAME)/billionmail-rspamd:latest; \
+	docker tag billionmail/dovecot:1.5 $(DOCKER_USERNAME)/billionmail-dovecot:1.5; \
+	docker tag billionmail/dovecot:1.5 $(DOCKER_USERNAME)/billionmail-dovecot:latest; \
+	docker tag billionmail/postfix:1.6 $(DOCKER_USERNAME)/billionmail-postfix:1.6; \
+	docker tag billionmail/postfix:1.6 $(DOCKER_USERNAME)/billionmail-postfix:latest; \
+	echo "Images tagged successfully for $(DOCKER_USERNAME)!"
+
+fix-exec-format-error: ## Fix exec format error by pulling correct architecture images
+	@echo "Fixing exec format error by detecting and pulling correct architecture images..."
+	@ARCH=$$(uname -m); \
+	if [ "$$ARCH" = "x86_64" ]; then \
+		PLATFORM="linux/amd64"; \
+	elif [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
+		PLATFORM="linux/arm64"; \
+	else \
+		echo "Unsupported architecture: $$ARCH"; \
+		exit 1; \
+	fi; \
+	echo "Detected architecture: $$ARCH (platform: $$PLATFORM)"; \
+	echo "Stopping services..."; \
+	make stop; \
+	echo "Pulling correct architecture images..."; \
+	make docker-pull-platform PLATFORM=$$PLATFORM; \
+	echo "Starting services with correct images..."; \
+	make start; \
+	echo "Fix completed! Services should now start without exec format errors."
