@@ -21,6 +21,7 @@ help: ## Show this help message
 	@echo "  make logs        - Show logs from all services"
 	@echo "  make status      - Show status of all services"
 	@echo "  make clean       - Stop services and remove containers/volumes"
+	@echo "  make clean-networks - Clean up Docker networks (fix conflicts)"
 	@echo ""
 	@echo "Backend Commands:"
 	@echo "  make go-build    - Build Go backend"
@@ -175,6 +176,12 @@ clean-all: ## Complete cleanup including images
 	@echo "Complete cleanup including images..."
 	$(DOCKER_COMPOSE_CMD) down -v --remove-orphans --rmi all
 	@echo "Complete cleanup finished"
+
+clean-networks: ## Clean up Docker networks (fix network conflicts)
+	@echo "Cleaning up Docker networks..."
+	@echo "Removing billionmail networks..."
+	@docker network ls --filter name=billionmail --format "{{.Name}}" | xargs -r docker network rm 2>/dev/null || true
+	@echo "Network cleanup complete"
 
 # Backend Commands
 go-build: ## Build Go backend
