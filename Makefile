@@ -48,6 +48,7 @@ help: ## Show this help message
 	@echo "  make restore     - Restore from backup"
 	@echo "  make logs-clean  - Clean old log files"
 	@echo "  make ssl-renew   - Renew SSL certificates"
+	@echo "  make install-docker - Run Docker installation and setup script"
 
 # Frontend Development Commands
 install: ## Install frontend dependencies
@@ -272,6 +273,10 @@ setup-dev: ## Setup development environment
 	@echo "Frontend dev server: https://localhost:3000/"
 	@echo "Admin panel: http://localhost/billion"
 	@echo "Username: billion, Password: billion"
+
+install-docker: ## Run Docker installation and setup script
+	@echo "Running Docker installation and setup script..."
+	@./install_docker.sh
 
 # Quick Commands
 up: start ## Alias for start
