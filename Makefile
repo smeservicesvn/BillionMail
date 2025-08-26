@@ -79,53 +79,101 @@ format: ## Format code with Prettier
 	@echo "Formatting code with Prettier..."
 	cd core/frontend && pnpm format
 
+# Docker Compose command detection
+DOCKER_COMPOSE_CMD := $(shell if docker compose version >/dev/null 2>&1; then echo "docker compose"; elif docker-compose --version >/dev/null 2>&1; then echo "docker-compose"; else echo ""; fi)
+
 # Docker Service Commands
 start: ## Start all services with docker-compose
-	@echo "Starting all services..."
-	docker-compose up -d
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		echo "Please install Docker Compose or run: make install-docker"; \
+		exit 1; \
+	fi
+	@echo "Starting all services using $(DOCKER_COMPOSE_CMD)..."
+	$(DOCKER_COMPOSE_CMD) up -d
 	@echo "Services started. Access admin panel at: http://localhost/billion"
 	@echo "Frontend dev server: https://localhost:3000/"
 
 stop: ## Stop all services
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Stopping all services..."
-	docker-compose down
+	$(DOCKER_COMPOSE_CMD) down
 
 restart: ## Restart all services
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Restarting all services..."
-	docker-compose restart
+	$(DOCKER_COMPOSE_CMD) restart
 
 status: ## Show status of all services
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Service Status:"
-	docker-compose ps
+	$(DOCKER_COMPOSE_CMD) ps
 
 logs: ## Show logs from all services
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Showing logs from all services..."
-	docker-compose logs -f
+	$(DOCKER_COMPOSE_CMD) logs -f
 
 logs-core: ## Show core service logs
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Showing core service logs..."
-	docker-compose logs -f core-billionmail
+	$(DOCKER_COMPOSE_CMD) logs -f core-billionmail
 
 logs-mail: ## Show mail service logs
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Showing mail service logs..."
-	docker-compose logs -f postfix-billionmail dovecot-billionmail rspamd-billionmail
+	$(DOCKER_COMPOSE_CMD) logs -f postfix-billionmail dovecot-billionmail rspamd-billionmail
 
 logs-webmail: ## Show webmail service logs
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Showing webmail service logs..."
-	docker-compose logs -f webmail-billionmail
+	$(DOCKER_COMPOSE_CMD) logs -f webmail-billionmail
 
 logs-db: ## Show database logs
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Showing database logs..."
-	docker-compose logs -f pgsql-billionmail redis-billionmail
+	$(DOCKER_COMPOSE_CMD) logs -f pgsql-billionmail redis-billionmail
 
 clean: ## Stop services and remove containers/volumes
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Stopping services and cleaning up..."
-	docker-compose down -v --remove-orphans
+	$(DOCKER_COMPOSE_CMD) down -v --remove-orphans
 	@echo "Cleanup complete"
 
 clean-all: ## Complete cleanup including images
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Complete cleanup including images..."
-	docker-compose down -v --remove-orphans --rmi all
+	$(DOCKER_COMPOSE_CMD) down -v --remove-orphans --rmi all
 	@echo "Complete cleanup finished"
 
 # Backend Commands
@@ -214,28 +262,40 @@ docker-full-clone: ## Complete workflow: clone, push, and update compose
 
 # Deployment Commands
 deploy: ## Deploy to production
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Deploying to production..."
 	git pull origin main
-	docker-compose down
-	docker-compose up -d --build
+	$(DOCKER_COMPOSE_CMD) down
+	$(DOCKER_COMPOSE_CMD) up -d --build
 	@echo "Deployment complete"
 
 # Utility Commands
 backup: ## Backup database and configs
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Creating backup..."
 	@mkdir -p backups/$(shell date +%Y%m%d_%H%M%S)
-	@docker-compose exec pgsql-billionmail pg_dump -U billionmail billionmail > backups/$(shell date +%Y%m%d_%H%M%S)/database.sql
+	@$(DOCKER_COMPOSE_CMD) exec pgsql-billionmail pg_dump -U billionmail billionmail > backups/$(shell date +%Y%m%d_%H%M%S)/database.sql
 	@cp -r conf backups/$(shell date +%Y%m%d_%H%M%S)/
 	@cp .env backups/$(shell date +%Y%m%d_%H%M%S)/
 	@echo "Backup created in backups/$(shell date +%Y%m%d_%H%M%S)/"
 
 restore: ## Restore from backup (usage: make restore BACKUP_DIR=backups/20240821_123456)
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@if [ -z "$(BACKUP_DIR)" ]; then echo "Usage: make restore BACKUP_DIR=backups/YYYYMMDD_HHMMSS"; exit 1; fi
 	@echo "Restoring from backup: $(BACKUP_DIR)"
-	@docker-compose exec pgsql-billionmail psql -U billionmail billionmail < $(BACKUP_DIR)/database.sql
+	@$(DOCKER_COMPOSE_CMD) exec pgsql-billionmail psql -U billionmail billionmail < $(BACKUP_DIR)/database.sql
 	@cp -r $(BACKUP_DIR)/conf/* conf/
 	@cp $(BACKUP_DIR)/.env .env
-	@docker-compose restart
+	@$(DOCKER_COMPOSE_CMD) restart
 	@echo "Restore complete"
 
 logs-clean: ## Clean old log files
@@ -245,20 +305,28 @@ logs-clean: ## Clean old log files
 	@echo "Log cleanup complete"
 
 ssl-renew: ## Renew SSL certificates
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Renewing SSL certificates..."
-	docker-compose exec core-billionmail lego --email admin@localhost --domains localhost --http renew
-	@docker-compose restart core-billionmail
+	$(DOCKER_COMPOSE_CMD) exec core-billionmail lego --email admin@localhost --domains localhost --http renew
+	@$(DOCKER_COMPOSE_CMD) restart core-billionmail
 	@echo "SSL renewal complete"
 
 # Health Check Commands
 health: ## Check health of all services
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "Error: Neither 'docker compose' nor 'docker-compose' is available."; \
+		exit 1; \
+	fi
 	@echo "Checking service health..."
 	@echo "Core Service:"
 	@curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost/billion || echo "Core service not responding"
 	@echo "PostgreSQL:"
-	@docker-compose exec pgsql-billionmail pg_isready -U billionmail || echo "PostgreSQL not ready"
+	@$(DOCKER_COMPOSE_CMD) exec pgsql-billionmail pg_isready -U billionmail || echo "PostgreSQL not ready"
 	@echo "Redis:"
-	@docker-compose exec redis-billionmail redis-cli ping || echo "Redis not responding"
+	@$(DOCKER_COMPOSE_CMD) exec redis-billionmail redis-cli ping || echo "Redis not responding"
 	@echo "Mail Services:"
 	@echo "  SMTP (25): $(shell nc -z localhost 25 && echo "OK" || echo "FAIL")"
 	@echo "  IMAP (143): $(shell nc -z localhost 143 && echo "OK" || echo "FAIL")"
