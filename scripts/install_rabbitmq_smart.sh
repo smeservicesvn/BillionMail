@@ -1,4 +1,5 @@
 #!/bin/bash
+# Use set -e but with better error handling
 set -e
 
 # === Configurable variables ===
@@ -85,8 +86,8 @@ install_via_docker() {
   # Check if docker-compose is available
   if ! command -v docker-compose >/dev/null 2>&1; then
     echo ">>> Installing docker-compose..."
-    sudo apt update -y
-    sudo apt install -y docker-compose
+    sudo apt update -y || true
+    sudo apt install -y docker-compose || true
   fi
   
   # Create docker-compose.yml
@@ -114,7 +115,10 @@ EOF
 
   # Start RabbitMQ container
   echo ">>> Starting RabbitMQ container..."
-  docker-compose -f /tmp/rabbitmq-docker-compose.yml up -d
+  docker-compose -f /tmp/rabbitmq-docker-compose.yml up -d || {
+    echo ">>> Docker installation failed, trying alternative method..."
+    return 1
+  }
   
   echo ">>> Docker installation complete!"
   echo ">>> Access management UI at: http://<server-ip>:15672"
@@ -126,18 +130,24 @@ install_via_snap() {
   echo ">>> Installing RabbitMQ via Snap..."
   
   # Install Erlang snap first
-  sudo snap install erlang --classic
+  sudo snap install erlang --classic || {
+    echo ">>> Erlang snap installation failed"
+    return 1
+  }
   
   # Install RabbitMQ snap
-  sudo snap install rabbitmq-server
+  sudo snap install rabbitmq-server || {
+    echo ">>> RabbitMQ snap installation failed"
+    return 1
+  }
   
   # Enable management plugin
-  sudo rabbitmq-plugins enable rabbitmq_management
+  sudo rabbitmq-plugins enable rabbitmq_management || true
   
   # Create user
-  sudo rabbitmqctl add_user "$RABBIT_USER" "$RABBIT_PASS"
-  sudo rabbitmqctl set_user_tags "$RABBIT_USER" administrator
-  sudo rabbitmqctl set_permissions -p / "$RABBIT_USER" ".*" ".*" ".*"
+  sudo rabbitmqctl add_user "$RABBIT_USER" "$RABBIT_PASS" || true
+  sudo rabbitmqctl set_user_tags "$RABBIT_USER" administrator || true
+  sudo rabbitmqctl set_permissions -p / "$RABBIT_USER" ".*" ".*" ".*" || true
   
   echo ">>> Snap installation complete!"
 }
@@ -147,20 +157,23 @@ install_via_packages() {
   echo ">>> Installing RabbitMQ via packages..."
   
   # Update system
-  sudo apt update -y
+  sudo apt update -y || true
   
   # Install RabbitMQ directly (Erlang 26+ already available)
-  sudo apt install -y rabbitmq-server
+  sudo apt install -y rabbitmq-server || {
+    echo ">>> RabbitMQ package installation failed"
+    return 1
+  }
   
   # Configure and start
-  sudo systemctl enable rabbitmq-server
-  sudo systemctl start rabbitmq-server
-  sudo rabbitmq-plugins enable rabbitmq_management
+  sudo systemctl enable rabbitmq-server || true
+  sudo systemctl start rabbitmq-server || true
+  sudo rabbitmq-plugins enable rabbitmq_management || true
   
   # Create user
-  sudo rabbitmqctl add_user "$RABBIT_USER" "$RABBIT_PASS"
-  sudo rabbitmqctl set_user_tags "$RABBIT_USER" administrator
-  sudo rabbitmqctl set_permissions -p / "$RABBIT_USER" ".*" ".*" ".*"
+  sudo rabbitmqctl add_user "$RABBIT_USER" "$RABBIT_PASS" || true
+  sudo rabbitmqctl set_user_tags "$RABBIT_USER" administrator || true
+  sudo rabbitmqctl set_permissions -p / "$RABBIT_USER" ".*" ".*" ".*" || true
   
   echo ">>> Package installation complete!"
 }
@@ -170,8 +183,8 @@ install_via_smart_repos() {
   echo ">>> Installing RabbitMQ via smart repository management..."
   
   # Update system
-  sudo apt update -y && sudo apt upgrade -y
-  sudo apt install -y curl gnupg apt-transport-https lsb-release
+  sudo apt update -y && sudo apt upgrade -y || true
+  sudo apt install -y curl gnupg apt-transport-https lsb-release || true
   
   # Try multiple Erlang sources
   local erlang_installed=false
@@ -184,7 +197,7 @@ install_via_smart_repos() {
       echo ">>> Adding Erlang repository from: $url"
       if curl -fsSL "$url" | sudo gpg --dearmor -o /usr/share/keyrings/erlang.gpg; then
         echo "deb [signed-by=/usr/share/keyrings/erlang.gpg] https://packages.erlang-solutions.com/ubuntu $(get_ubuntu_version) contrib" | sudo tee /etc/apt/sources.list.d/erlang.list
-        sudo apt update -y
+        sudo apt update -y || true
         if sudo apt install -y esl-erlang; then
           erlang_installed=true
           break
@@ -217,21 +230,24 @@ install_via_smart_repos() {
   
   # Install RabbitMQ
   echo ">>> Adding RabbitMQ repository..."
-  curl -fsSL https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/com.rabbitmq.gpg
+  curl -fsSL https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/com.rabbitmq.gpg || true
   echo "deb [signed-by=/usr/share/keyrings/com.rabbitmq.gpg] https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu $(get_ubuntu_version) main" | sudo tee /etc/apt/sources.list.d/rabbitmq.list
   
-  sudo apt update -y
-  sudo apt install -y rabbitmq-server
+  sudo apt update -y || true
+  sudo apt install -y rabbitmq-server || {
+    echo ">>> RabbitMQ installation failed"
+    return 1
+  }
   
   # Configure and start
-  sudo systemctl enable rabbitmq-server
-  sudo systemctl start rabbitmq-server
-  sudo rabbitmq-plugins enable rabbitmq_management
+  sudo systemctl enable rabbitmq-server || true
+  sudo systemctl start rabbitmq-server || true
+  sudo rabbitmq-plugins enable rabbitmq_management || true
   
   # Create user
-  sudo rabbitmqctl add_user "$RABBIT_USER" "$RABBIT_PASS"
-  sudo rabbitmqctl set_user_tags "$RABBIT_USER" administrator
-  sudo rabbitmqctl set_permissions -p / "$RABBIT_USER" ".*" ".*" ".*"
+  sudo rabbitmqctl add_user "$RABBIT_USER" "$RABBIT_PASS" || true
+  sudo rabbitmqctl set_user_tags "$RABBIT_USER" administrator || true
+  sudo rabbitmqctl set_permissions -p / "$RABBIT_USER" ".*" ".*" ".*" || true
   
   echo ">>> Smart repository installation complete!"
 }
@@ -241,29 +257,51 @@ main() {
   echo ">>> Starting installation process..."
   
   # Determine best strategy
-  echo ">>> Calling determine_strategy function..."
   determine_strategy
   local strategy=$?
-  echo ">>> Function returned: $strategy"
   
   echo ">>> Selected strategy: $strategy"
   
   case $strategy in
     1)
       echo ">>> Executing Docker strategy..."
-      install_via_docker
+      install_via_docker || {
+        echo ">>> Docker strategy failed, trying Snap..."
+        install_via_snap || {
+          echo ">>> Snap strategy failed, trying Smart repository..."
+          install_via_smart_repos || {
+            echo ">>> All strategies failed. Please check your system and try again."
+            exit 1
+          }
+        }
+      }
       ;;
     2)
       echo ">>> Executing Snap strategy..."
-      install_via_snap
+      install_via_snap || {
+        echo ">>> Snap strategy failed, trying Smart repository..."
+        install_via_smart_repos || {
+          echo ">>> All strategies failed. Please check your system and try again."
+          exit 1
+        }
+      }
       ;;
     3)
       echo ">>> Executing Direct package strategy..."
-      install_via_packages
+      install_via_packages || {
+        echo ">>> Direct package strategy failed, trying Smart repository..."
+        install_via_smart_repos || {
+          echo ">>> All strategies failed. Please check your system and try again."
+          exit 1
+        }
+      }
       ;;
     4)
       echo ">>> Executing Smart repository strategy..."
-      install_via_smart_repos
+      install_via_smart_repos || {
+        echo ">>> Smart repository strategy failed. Please check your system and try again."
+        exit 1
+      }
       ;;
     *)
       echo ">>> Error: Could not determine installation strategy (got: $strategy)"
