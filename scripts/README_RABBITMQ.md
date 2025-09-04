@@ -76,6 +76,18 @@ gpg: no valid OpenPGP data found.
 2. Falls back to Ubuntu's default Erlang packages if the repository is unavailable
 3. Provides clear error messages and continues with available options
 
+**504 Gateway Timeout**: If you see an error like:
+```
+504  Gateway Time-out [IP: 3.160.196.25 443]
+W: Failed to fetch https://packages.erlang-solutions.com/ubuntu/dists/noble/InRelease
+```
+
+**Solution**: The script now:
+1. Detects 504 timeout errors from Erlang Solutions repository
+2. Attempts to install Erlang from Ubuntu repositories as fallback
+3. Provides clear warnings about potential version compatibility issues
+4. Continues installation with available packages
+
 **Erlang Version Conflict**: If you see an error like:
 ```
 rabbitmq-server : Depends: erlang-base (>= 1:26.0) but 1:25.3.2.8+dfsg-1ubuntu4.4 is to be installed

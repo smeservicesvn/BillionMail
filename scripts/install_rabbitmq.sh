@@ -71,18 +71,48 @@ if command -v erl &> /dev/null; then
 fi
 
 # Try to install esl-erlang (Erlang 26.0+)
-if ! command -v erl &> /dev/null || ! erl -eval 'io:format("~s", [erlang:system_info(version)]), halt().' -noshell | grep -q "^2[6-9]\|^[3-9][0-9]"; then
+ERLANG_NEEDS_UPDATE=false
+if ! command -v erl &> /dev/null; then
+  ERLANG_NEEDS_UPDATE=true
+else
+  # Check if current version is >= 26.0
+  ERLANG_VERSION=$(erl -eval 'io:format("~s", [erlang:system_info(version)]), halt().' -noshell 2>/dev/null || echo "0.0")
+  if [[ "$ERLANG_VERSION" =~ ^([0-9]+)\.([0-9]+) ]]; then
+    MAJOR_VERSION=${BASH_REMATCH[1]}
+    if [ "$MAJOR_VERSION" -lt 26 ]; then
+      ERLANG_NEEDS_UPDATE=true
+    fi
+  else
+    ERLANG_NEEDS_UPDATE=true
+  fi
+fi
+
+if [ "$ERLANG_NEEDS_UPDATE" = true ]; then
   echo ">>> Installing Erlang 26.0+..."
   if sudo apt install -y esl-erlang; then
     echo ">>> Erlang 26.0+ installed successfully"
   else
     echo ">>> Error: Could not install esl-erlang (Erlang 26.0+)"
     echo ">>> This is required for RabbitMQ 3.12+"
-    echo ">>> Please check your internet connection and try again, or:"
-    echo ">>> 1. Try running: sudo apt update && sudo apt install -y esl-erlang"
-    echo ">>> 2. If that fails, you may need to install an older version of RabbitMQ"
-    echo ">>> 3. Or manually install Erlang 26.0+ from source"
-    exit 1
+    echo ">>> The Erlang Solutions repository may be experiencing issues (504 timeout)"
+    echo ">>> Trying alternative installation methods..."
+    
+    # Try to install from Ubuntu's backports or other sources
+    echo ">>> Attempting to install Erlang from alternative sources..."
+    if sudo apt install -y erlang-base erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key erlang-runtime-tools erlang-snmp erlang-ssl erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl; then
+      echo ">>> Erlang installed from Ubuntu repositories"
+      echo ">>> Note: This may be an older version. If RabbitMQ installation fails,"
+      echo ">>> you may need to install an older version of RabbitMQ or wait for"
+      echo ">>> the Erlang Solutions repository to be available."
+    else
+      echo ">>> All installation methods failed."
+      echo ">>> Please try again later when the Erlang Solutions repository is available, or:"
+      echo ">>> 1. Install an older version of RabbitMQ that supports Erlang 25.x"
+      echo ">>> 2. Manually install Erlang 26.0+ from source"
+      echo ">>> 3. Use a different server or try again later"
+      exit 1
+    fi
+  fi
   fi
 else
   echo ">>> Erlang 26.0+ is already installed"
