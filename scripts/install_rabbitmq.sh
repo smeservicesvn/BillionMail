@@ -9,7 +9,18 @@ echo ">>> Updating system..."
 sudo apt update -y && sudo apt upgrade -y
 
 echo ">>> Installing dependencies..."
-sudo apt install -y curl gnupg apt-transport-https
+sudo apt install -y curl gnupg apt-transport-https lsb-release
+
+# === Add Erlang repository (required for RabbitMQ 3.12+) ===
+if [ ! -f /usr/share/keyrings/erlang.gpg ]; then
+  echo ">>> Adding Erlang signing key..."
+  curl -fsSL https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | sudo gpg --dearmor -o /usr/share/keyrings/erlang.gpg
+fi
+
+if [ ! -f /etc/apt/sources.list.d/erlang.list ]; then
+  echo ">>> Adding Erlang repository..."
+  echo "deb [signed-by=/usr/share/keyrings/erlang.gpg] https://packages.erlang-solutions.com/ubuntu $(lsb_release -cs) contrib" | sudo tee /etc/apt/sources.list.d/erlang.list
+fi
 
 # === Add RabbitMQ repo (idempotent) ===
 if [ ! -f /usr/share/keyrings/com.rabbitmq.gpg ]; then
@@ -22,8 +33,13 @@ if [ ! -f /etc/apt/sources.list.d/rabbitmq.list ]; then
   echo "deb [signed-by=/usr/share/keyrings/com.rabbitmq.gpg] https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/rabbitmq.list
 fi
 
-echo ">>> Installing RabbitMQ..."
+echo ">>> Updating package lists..."
 sudo apt update -y
+
+echo ">>> Installing Erlang 26.0+..."
+sudo apt install -y esl-erlang
+
+echo ">>> Installing RabbitMQ..."
 sudo apt install -y rabbitmq-server
 
 echo ">>> Enabling and starting service..."
