@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# Remove set -e temporarily for debugging
+# set -e
 
 # === Configurable variables ===
 RABBIT_USER="smessvn"
@@ -43,6 +44,7 @@ check_erlang_version() {
 
 # Function to determine best installation strategy
 determine_strategy() {
+  echo ">>> Inside determine_strategy function"
   local ubuntu_version=$(get_ubuntu_version)
   local erlang_version=$(check_erlang_version)
   
@@ -54,6 +56,7 @@ determine_strategy() {
   if command -v docker >/dev/null 2>&1; then
     echo ">>> Strategy: Docker-based installation (recommended)"
     echo ">>> Docker found: $(which docker)"
+    echo ">>> Returning 1"
     return 1
   else
     echo ">>> Docker not found, checking next strategy..."
@@ -63,6 +66,7 @@ determine_strategy() {
   if command -v snap >/dev/null 2>&1; then
     echo ">>> Strategy: Snap-based installation"
     echo ">>> Snap found: $(which snap)"
+    echo ">>> Returning 2"
     return 2
   else
     echo ">>> Snap not found, checking next strategy..."
@@ -71,9 +75,11 @@ determine_strategy() {
   # Strategy 3: Smart package installation
   if [ "$erlang_version" -ge 26 ] 2>/dev/null; then
     echo ">>> Strategy: Direct package installation (Erlang 26+ detected)"
+    echo ">>> Returning 3"
     return 3
   else
     echo ">>> Strategy: Smart repository management"
+    echo ">>> Returning 4"
     return 4
   fi
 }
