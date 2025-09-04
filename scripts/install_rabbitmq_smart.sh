@@ -53,13 +53,19 @@ determine_strategy() {
   # Strategy 1: Use Docker (most reliable)
   if command -v docker >/dev/null 2>&1; then
     echo ">>> Strategy: Docker-based installation (recommended)"
+    echo ">>> Docker found: $(which docker)"
     return 1
+  else
+    echo ">>> Docker not found, checking next strategy..."
   fi
   
   # Strategy 2: Use Snap (if available)
   if command -v snap >/dev/null 2>&1; then
     echo ">>> Strategy: Snap-based installation"
+    echo ">>> Snap found: $(which snap)"
     return 2
+  else
+    echo ">>> Snap not found, checking next strategy..."
   fi
   
   # Strategy 3: Smart package installation
@@ -75,6 +81,13 @@ determine_strategy() {
 # Strategy 1: Docker installation
 install_via_docker() {
   echo ">>> Installing RabbitMQ via Docker..."
+  
+  # Check if docker-compose is available
+  if ! command -v docker-compose >/dev/null 2>&1; then
+    echo ">>> Installing docker-compose..."
+    sudo apt update -y
+    sudo apt install -y docker-compose
+  fi
   
   # Create docker-compose.yml
   cat > /tmp/rabbitmq-docker-compose.yml << 'EOF'
@@ -100,6 +113,7 @@ volumes:
 EOF
 
   # Start RabbitMQ container
+  echo ">>> Starting RabbitMQ container..."
   docker-compose -f /tmp/rabbitmq-docker-compose.yml up -d
   
   echo ">>> Docker installation complete!"
@@ -224,21 +238,29 @@ install_via_smart_repos() {
 
 # Main installation logic
 main() {
+  echo ">>> Starting installation process..."
+  
   # Determine best strategy
   determine_strategy
   local strategy=$?
   
+  echo ">>> Selected strategy: $strategy"
+  
   case $strategy in
     1)
+      echo ">>> Executing Docker strategy..."
       install_via_docker
       ;;
     2)
+      echo ">>> Executing Snap strategy..."
       install_via_snap
       ;;
     3)
+      echo ">>> Executing Direct package strategy..."
       install_via_packages
       ;;
     4)
+      echo ">>> Executing Smart repository strategy..."
       install_via_smart_repos
       ;;
     *)
