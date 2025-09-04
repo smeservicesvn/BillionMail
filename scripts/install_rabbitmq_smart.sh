@@ -25,12 +25,14 @@ get_ubuntu_version() {
   lsb_release -cs 2>/dev/null || echo "unknown"
 }
 
-# Function to check Erlang version
+# Function to check Erlang version (compatible with both sh and bash)
 check_erlang_version() {
-  if command -v erl &> /dev/null; then
+  if command -v erl >/dev/null 2>&1; then
     local version=$(erl -eval 'io:format("~s", [erlang:system_info(version)]), halt().' -noshell 2>/dev/null || echo "0.0")
-    if [[ "$version" =~ ^([0-9]+)\.([0-9]+) ]]; then
-      echo "${BASH_REMATCH[1]}"
+    # Use sed instead of bash regex for compatibility
+    local major_version=$(echo "$version" | sed -n 's/^\([0-9]*\)\..*/\1/p')
+    if [ -n "$major_version" ] && [ "$major_version" -ge 0 ] 2>/dev/null; then
+      echo "$major_version"
     else
       echo "0"
     fi
@@ -49,19 +51,19 @@ determine_strategy() {
   echo "   Current Erlang: $erlang_version"
   
   # Strategy 1: Use Docker (most reliable)
-  if command -v docker &> /dev/null; then
+  if command -v docker >/dev/null 2>&1; then
     echo ">>> Strategy: Docker-based installation (recommended)"
     return 1
   fi
   
   # Strategy 2: Use Snap (if available)
-  if command -v snap &> /dev/null; then
+  if command -v snap >/dev/null 2>&1; then
     echo ">>> Strategy: Snap-based installation"
     return 2
   fi
   
   # Strategy 3: Smart package installation
-  if [ "$erlang_version" -ge 26 ]; then
+  if [ "$erlang_version" -ge 26 ] 2>/dev/null; then
     echo ">>> Strategy: Direct package installation (Erlang 26+ detected)"
     return 3
   else
@@ -161,13 +163,9 @@ install_via_smart_repos() {
   local erlang_installed=false
   
   # Source 1: Erlang Solutions (try multiple URLs)
-  local erlang_urls=(
-    "https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc"
-    "http://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc"
-    "https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc"
-  )
+  local erlang_urls="https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc http://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc"
   
-  for url in "${erlang_urls[@]}"; do
+  for url in $erlang_urls; do
     if check_connectivity "$url" 5; then
       echo ">>> Adding Erlang repository from: $url"
       if curl -fsSL "$url" | sudo gpg --dearmor -o /usr/share/keyrings/erlang.gpg; then
@@ -227,7 +225,8 @@ install_via_smart_repos() {
 # Main installation logic
 main() {
   # Determine best strategy
-  local strategy=$(determine_strategy)
+  determine_strategy
+  local strategy=$?
   
   case $strategy in
     1)
