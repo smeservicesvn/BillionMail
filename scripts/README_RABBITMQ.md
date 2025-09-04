@@ -65,6 +65,17 @@ rabbitmq-server : Depends: erlang-base (>= 1:26.0) but 1:25.3.2.8+dfsg-1ubuntu4.
 
 **Solution**: The updated script now automatically handles this by installing Erlang 26.0+ from the official repository.
 
+**Network/Download Error**: If you see an error like:
+```
+curl: (22) The requested URL returned error: 504
+gpg: no valid OpenPGP data found.
+```
+
+**Solution**: The script now includes fallback methods:
+1. Tries HTTPS first, then HTTP if HTTPS fails
+2. Falls back to Ubuntu's default Erlang packages if the repository is unavailable
+3. Provides clear error messages and continues with available options
+
 ### Useful Commands
 
 Check service status:
