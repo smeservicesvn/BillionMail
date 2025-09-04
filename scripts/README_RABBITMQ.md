@@ -76,6 +76,17 @@ gpg: no valid OpenPGP data found.
 2. Falls back to Ubuntu's default Erlang packages if the repository is unavailable
 3. Provides clear error messages and continues with available options
 
+**Erlang Version Conflict**: If you see an error like:
+```
+rabbitmq-server : Depends: erlang-base (>= 1:26.0) but 1:25.3.2.8+dfsg-1ubuntu4.4 is to be installed
+```
+
+**Solution**: The script now:
+1. Checks current Erlang version before installation
+2. Removes old Erlang packages if version < 26.0
+3. Ensures esl-erlang (Erlang 26.0+) is installed before RabbitMQ
+4. Provides clear error messages if Erlang 26.0+ cannot be installed
+
 ### Useful Commands
 
 Check service status:
